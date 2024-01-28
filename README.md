@@ -14,5 +14,5 @@ Don't hesitate also to propose enhancements.
 Usage:
 1- Download the .sh file, 
 2- Edit it and check the header. You can adapt the default values, like the email address, to be able to call the script without params
-3- Either execute the script on command line, or place it under cron to execute it.
-4- call backupynh.sh --help for more details about how to available options
+3- Either execute the script on command line, or place it under cron to execute it periodically.
+4- call backupynh.sh --help for more details about how to use the available options
