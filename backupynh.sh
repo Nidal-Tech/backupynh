@@ -9,6 +9,10 @@
 # - being called with parameters, otherwise using the default values 
 # This script is provided as a courtesy to the Yunohost community, and without any warranty. Use-it at your own responsibility.
 # Don't hesitate also to propose enhancements.
+# Backlog:
+# - add flag for compressed backups
+# - finalize cron tests
+# - test curl
 
 # Default values
 ListFile="temp.txt" # temporary file to read the existing backups
@@ -128,7 +132,7 @@ if [ $Result == 0 ]; then #if backup succeeds then copy it to External folder
 
   if [ $Run == 1 ]; then
     cp $Bkp".info.json" $ArchFolder
-    cp $Bkp".tar" $ArchFolder
+#   cp $Bkp".tar" $ArchFolder
     cp $Bkp".tar.gz" $ArchFolder
   fi
   Msg=$Bkp" backup copied successfully to :"$ArchFolder
@@ -142,7 +146,7 @@ if [ $Result == 0 ]; then #if backup succeeds then copy it to External folder
   else
     if [ $Run == 1 ]; then
        curl -F $RemoteURL$Bkp".info.json"
-       curl -F $RemoteURL$Bkp".tar"
+#      curl -F $RemoteURL$Bkp".tar"
        curl -F $RemoteURL$Bkp".tar.gz"
     fi
     Msg=$Bkp" uploaded with success to remote URL"
