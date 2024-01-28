@@ -1,27 +1,27 @@
 #! /bin/bash
-# version 28-01-2024
-# author email: tech@amer.ovh
-# this script aims to enhance Yunohost backup by 
+# Version 28-01-2024
+# Author email: tech@amer.ovh
+# This script aims to enhance Yunohost backup by 
 # - calling Yunohost to list the existing backups and delete the extra ones beyond a defined number
 # - mirroring the yunohost.backup archives folder to another given location
 # - exporgting the last backup to an external site using curl
 # - logging to syslog, and send email at the end, so it can be run as a cron job with any desired frequency
-# - be called with parameters, otherwise use the following default values 
+# - being called with parameters, otherwise using the default values 
 # This script is provided as a courtesy to the Yunohost community, and without any warranty. Use-it at your own responsibility.
 # Don't hesitate also to propose enhancements.
 
-
+# Default values
 ListFile="temp.txt" # temporary file to read the existing backups
 MailBody="Running Yunohost cycling backup script\r\n"
 Src="/home/yunohost.backup/archives/" # the files where Yunohost store backups
-Shell=$0
+Shell=$0 #name of this script
 
 # set these parameters to your need or pass them as parameters
 ArchFolder="/mnt/bkp/backups/" # where the copy of the backup should be archived. this must be a local map
 NbBkps=7 # number of backups to cycle
-RemoteURL=""; #TODO. Upload via curl has not been tested yet
-Debug='No'; # Debug to Yes to prevent actual copy and delete, to active echo instead of logger to check the script output
-MailTo="admin@your.domain";
+RemoteURL="" #TODO. Not tested yet. Please use it at your own risk
+Debug='No' # Debug to Yes to prevent actual copy and delete, to active echo instead of logger to check the script output
+MailTo="ynhlord@amer.ovh"
 
 
 # check whether user had supplied -h or --help . If yes display usage
@@ -40,6 +40,7 @@ fi
 function log () {
 if [[ $Debug == "Yes" ]]; then
   echo $*;
+#  set -x
 else
   logger $Shell":"$*; # log to /var/log/syslog
 fi
@@ -83,13 +84,13 @@ log $Msg
 MailBody=$MailBody$Msg"\r\n"
 
 if [ $NLines > $NbBkps ]; then # if there are more backups than needed
-  for (( i=$NLines ; i>$NbBkps ; i-- )); do # delete the extra backups starting from the bottom of the list
-    Clean=${Backups[$i]}
+  for (( i=0 ; i<$NLines-$NbBkps ; i++ )); do # delete the extra backups starting from the bottom of the list
+    Clean=${Backups[$i+1]}
     Clean=${Clean:4} # remove the leading spaces and dash
+    Msg="Deleting backup:"$Clean
+    log $Msg
+    MailBody=$MailBody$Msg"\r\n"
     if [ $Run == 1 ]; then 
-      Msg= "Deleting backup:"$Clean"."
-      log $Msg
-      MailBody=$MailBody$Msg"\r\n"
       yunohost backup delete $Clean
       rm -f $ArchFolder$Clean".info.json"
       rm -f $ArchFolder$Clean".tar"
@@ -99,16 +100,14 @@ if [ $NLines > $NbBkps ]; then # if there are more backups than needed
 fi
 
 # now do a new backup
+Msg="Generating a new backup. This might take some time ...."
+log $Msg
+MailBody=$MailBody$Msg"\r\n"
 Result=0
 if [ $Run == 1 ]; then 
-  Msg="Generating a new backup. This might take some time ...."
-  log $Msg
-  MailBody=$MailBody$Msg"\r\n"
-
   yunohost backup create 
   Result=$?
 fi
-
 
 if [ $Result == 0 ]; then #if backup succeeds then copy it to External folder
 
@@ -131,23 +130,30 @@ if [ $Result == 0 ]; then #if backup succeeds then copy it to External folder
     cp $Bkp".info.json" $ArchFolder
     cp $Bkp".tar" $ArchFolder
     cp $Bkp".tar.gz" $ArchFolder
-    Msg=$Bkp"Backup copied with succedd to :"$ArchFolder
+  fi
+  Msg=$Bkp" backup copied successfully to :"$ArchFolder
+  log $Msg
+  MailBody=$MailBody$Msg"\r\n"
+
+  if [ $RemoteURL="" ]; then
+    Msg="No upload requested to remote URL"
     log $Msg
     MailBody=$MailBody$Msg"\r\n"
-    if [ $RemoteURL -ne "" ]; then
+  else
+    if [ $Run == 1 ]; then
        curl -F $RemoteURL$Bkp".info.json"
        curl -F $RemoteURL$Bkp".tar"
        curl -F $RemoteURL$Bkp".tar.gz"
-       Msg=$Bkp"Remote URL uploaded with success"
-       log $Msg
-       MailBody=$MailBody$Msg"\r\n"
     fi
+    Msg=$Bkp" uploaded with success to remote URL"
+    log $Msg
+    MailBody=$MailBody$Msg"\r\n"
   fi
 else
-  Msg="Erreur " $?
+  Msg="Erreur "$Result
   log $Msg
   MailBody=$MailBody$Msg"\r\n"
 fi
-if [ $MailTo -ne "" ]; then 
+if [ $MailTo != "" ]; then 
   echo -e $MailBody | mail -s "Yunohost backup report" $MailTo 
 fi
