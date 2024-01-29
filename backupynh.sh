@@ -1,5 +1,5 @@
 #! /bin/bash
-# Version 28-01-2024
+# Version 29-01-2024
 # Author email: tech@amer.ovh
 # This script aims to enhance Yunohost backup by 
 # - calling Yunohost to list the existing backups and delete the extra ones beyond a defined number
@@ -10,8 +10,6 @@
 # This script is provided as a courtesy to the Yunohost community, and without any warranty. Use-it at your own responsibility.
 # Don't hesitate also to propose enhancements.
 # Backlog:
-# - add flag for compressed backups
-# - finalize cron tests
 # - test curl
 
 # Default values
@@ -24,8 +22,9 @@ Shell=$0 #name of this script
 ArchFolder="/mnt/bkp/backups/" # where the copy of the backup should be archived. this must be a local map
 NbBkps=7 # number of backups to cycle
 RemoteURL="" #TODO. Not tested yet. Please use it at your own risk
-Debug='No' # Debug to Yes to prevent actual copy and delete, to active echo instead of logger to check the script output
-MailTo="ynhlord@amer.ovh"
+Zipped="Yes" # If backup is zipped then need, with .json, to copy .tar.gr files, otherwise only .tar
+Debug="No" # Debug to Yes to prevent actual copy and delete, to active echo instead of logger to check the script output
+MailTo="admin@your.domain"
 
 
 # check whether user had supplied -h or --help . If yes display usage
@@ -36,32 +35,34 @@ then
             "-a Archive folder to mirror the backuos\r\n"\
             "-r Remote URL to upload the backup\r\n"\
             "-n Number of backups to keep. Older ones will be deleted\r\n"\
-            "-m Email address to send the backup report to. Usefull if run from cron"\
-            "-d Yes to display debug information, default=No";
+            "-m Email address to send the backup report to. Usefull if run from cron\r\n"\
+            "-z Yes mean backup is zipped, otherwise No, defaut to Yes\r\n"\
+            "-d Yes to display debug information, default=No\r\n";
     exit 0;
 fi
 
 function log () {
-if [[ $Debug == "Yes" ]]; then
-  echo $*;
-#  set -x
-else
-  logger $Shell":"$*; # log to /var/log/syslog
-fi
+  if [ $Run == 0 ]; then
+    echo $*;
+   # set -x
+  else
+    logger $Shell":"$*; # log to /var/log/syslog
+  fi
 }
 
-while getopts a:r:n:d:m: flag
+while getopts a:r:n:m:z:d: flag
 do
     case "${flag}" in
         a) ArchFolder=${OPTARG};;
         r) RemoteURL=${OPTARG};;
         n) NbBkps=${OPTARG};;
-        d) Debug=${OPTARG};;
         m) MailTo=${OPTARG};;
+        z) Zipped=${OPTARG};;
+        d) Debug=${OPTARG};;
     esac
 done
 
-if [[ $Debug = 'Yes'|| $Debug = 'yes' ]]; then
+if [[ $Debug == 'Yes' || $Debug == 'yes' ]]; then
   echo "Debug mode";
   Run=0;
 else
@@ -76,7 +77,7 @@ readarray -t Backups < $ListFile # read this list into an array
 # TODO check if there's a need to sort the backup and line format=  - yyyymmdd_nnnnnn
 
 
-if [ ${Backups[0]} = "archives:" ]; then
+if [ ${Backups[0]} == "archives:" ]; then
   unset Backups[0] # delete the first text line 
 fi
 #echo ${Backups[*]}
@@ -126,38 +127,45 @@ if [ $Result == 0 ]; then #if backup succeeds then copy it to External folder
 
   # the first line is the new backup
   Bkp=$Src$Clean
-  Msg="Copy backup:"$Bkp" to:"$ArchFolder
+  Msg="Copying backup:"$Bkp" to:"$ArchFolder
   log $Msg
   MailBody=$MailBody$Msg"\r\n"
 
   if [ $Run == 1 ]; then
     cp $Bkp".info.json" $ArchFolder
-#   cp $Bkp".tar" $ArchFolder
-    cp $Bkp".tar.gz" $ArchFolder
+    if [ $Zipped == "Yes" ]; then
+      cp $Bkp".tar.gz" $ArchFolder
+    else
+      cp $Bkp".tar" $ArchFolder
+    fi
   fi
   Msg=$Bkp" backup copied successfully to :"$ArchFolder
   log $Msg
   MailBody=$MailBody$Msg"\r\n"
 
-  if [ $RemoteURL="" ]; then
+  if [ $RemoteURL=="" ]; then
     Msg="No upload requested to remote URL"
     log $Msg
     MailBody=$MailBody$Msg"\r\n"
   else
     if [ $Run == 1 ]; then
-       curl -F $RemoteURL$Bkp".info.json"
-#      curl -F $RemoteURL$Bkp".tar"
-       curl -F $RemoteURL$Bkp".tar.gz"
+      curl -F $RemoteURL$Bkp".info.json"
+      if [ $Zipped == "Yes" ]; then
+        curl -F $RemoteURL$Bkp".tar.gz"
+      else
+        curl -F $RemoteURL$Bkp".tar"
+      fi
     fi
     Msg=$Bkp" uploaded with success to remote URL"
     log $Msg
     MailBody=$MailBody$Msg"\r\n"
   fi
 else
-  Msg="Erreur "$Result
+  Msg="Erreur:"$Result
   log $Msg
   MailBody=$MailBody$Msg"\r\n"
 fi
-if [ $MailTo != "" ]; then 
+
+if [ $MailTo != "" ]; then # sending report by email  
   echo -e $MailBody | mail -s "Yunohost backup report" $MailTo 
 fi
