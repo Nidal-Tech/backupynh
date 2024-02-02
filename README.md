@@ -13,7 +13,16 @@ IMPORTANT: This script is provided under a CC license, as a contribution to the 
 Don't hesitate also to propose enhancements.
 
 Usage:
-1- Download the .sh file, 
+1- Download the .sh file,
 2- Edit it and check the header. You can adapt the default values, like the email address, to be able to call the script without params
 3- Either execute the script on command line, or place it under cron to execute it periodically.
-4- call backupynh.sh --help for more details about how to use the available options
+4- call backupynh.sh --help for more details. here's what you will see:
+
+Without parameters, the script will use the default values, that can be changed in the script
+ -h This help screen
+ -a Archive folder to mirror the backups
+ -r Remote URL to upload the backup
+ -n Number of backups to keep. Older ones will be deleted
+ -m Email address to send the backup report to. Usefull if run from cron
+ -z Yes mean backup is zipped, otherwise No, defaut to Yes
+ -d Yes to display debug information, default=No
