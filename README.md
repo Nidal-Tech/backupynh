@@ -2,7 +2,7 @@
 A bash script to cycle Yunohost backups and mirror the backup folder, and upload the last backup to a remote site
 version 28-01-2024
 Author's email: tech@amer.ovh
-This script aims to enhance Yunohost backup by: 
+This script aims to enhance Yunohost backup by:
 - calling Yunohost backup CLI to list the existing backups and delete the extra ones beyond a defined number
 - mirroring the yunohost.backup/archives folder to another given location
 - exporgting the last backup to an external site using curl (not tested yet. please wait for the next tested version)
@@ -23,6 +23,7 @@ Without parameters, the script will use the default values, that can be changed 
  -a Archive folder to mirror the backups
  -r Remote URL to upload the backup
  -n Number of backups to keep. Older ones will be deleted
+ -b parameters to pass into the yunohost backup create command (e.g. "--system" will just back up system settings, "--apps oordpress" will just back up the wordpress application). For more details see [Yunohost docs](https://yunohost.org/en/backup)
  -m Email address to send the backup report to. Usefull if run from cron
  -z Yes mean backup is zipped, otherwise No, defaut to Yes
  -d Yes to display debug information, default=No
